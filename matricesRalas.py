@@ -104,116 +104,180 @@ class MatrizRala:
 
     def __getitem__( self, Idx ):
         # Esta funcion implementa la indexacion ( Idx es una tupla (m,n) ) -> A[m,n]
-        M : int = Idx[0]
-        N : int = Idx[1]
-        if (M < 0 or N < 0):
-            return IndexError("El elemento pasado por parametro, no coincide con la fila y la columna de la matriz")
-        fila = self.filas[M]
-    
-        #Verifico si coincide la columna que es pasada por el Idx
-        def condicion_columnas(nodo:ListaEnlazada.Nodo):
-            columna = nodo.valor[0]
-            if N == columna:
-                return True
-            else:
-                return False            
+        m : int = Idx[0] # Filas
+        n : int = Idx[1] # Columnas
+     
+        # Si la columna no esta en la lista enlazada, o no hay una lista asociado a la fila m devuelve 0.
+        valor_posicion = 0
         
-        nodo_posicion = fila.nodoPorCondicion(condicion_columnas)
-        #Devolvemos el elemento que se halla en esa posicion
-        return nodo_posicion.valor[1]
+        # Veo si la fila n tiene una lista enlazada
+        if m in self.filas:
+
+            #Obtengo la lista enlazada de la fila
+            fila = self.filas[m]
+
+            # Recorro la lista enlazada. Si hay un elemento en la columna n,
+            # cambio el valor de valor_posicion.
+            nodoActual = fila.raiz
+            while not nodoActual == None:
+                if nodoActual.valor[0] == n:
+                    valor_posicion = nodoActual.valor[1]  
+                nodoActual = nodoActual.siguiente 
+
+        return valor_posicion
 
     def __setitem__( self, Idx, v ):
+        # Si v = 0, no hay que agregarlo a la matriz rala.
+        if v == 0:
+            return 
+        
+
         # Esta funcion implementa la asignacion durante indexacion ( Idx es una tupla (m,n) ) -> A[m,n] = v
         m : int = Idx[0]
         n : int = Idx[1]
+
+        # Si la fila no tiene una lista enlazada, creamos una y le ponemos como raiz el nodo (n, v)
         if m not in self.filas:
             self.filas[m] = ListaEnlazada()
             self.filas[m].insertarFrente((n, v))
-            return 
+            
         else:
             lista = self.filas[m]
-            nodoActual = lista.raiz
-            if lista.longitud == 1 :
-                columna = nodoActual.valor[0]
-                if (columna < n):
-                    lista.insertarDespuesDeNodo((n,v),nodoActual)
-                elif (columna > n):
-                    lista.insertarFrente((n,v))
-                else:
-                    nodoActual.valor = (n,v)
-            else: 
-                columna_actual = nodoActual.valor[0]
-                if n < columna_actual:
-                    lista.insertarFrente((n,v))
-                    return 
-                elif n == columna_actual:
+            nodoAnterior = lista.raiz
+
+            # Si la columna del elemento esta antes de la primera columna de la lista enlazada
+            if n < nodoAnterior.valor[0]:
+                lista.insertarFrente((n,v))
+                return 
+            
+            # Si la columna del elemento esta en la primera columna de la lista enlazada, reemplaza valor.
+            elif n == nodoAnterior.valor[0]:
+                nodoAnterior.valor = (n,v)
+                return
+            
+            nodoActual: ListaEnlazada.Nodo = nodoAnterior.siguiente
+
+            # Recorro la lista enlazada
+            while (nodoActual != None):
+                
+                # Si el elemento esta entre las columnas del nodoAnterior y el nodoActual, lo
+                # agrega a la lista despues de nodoAnterior 
+                if(nodoAnterior.valor[0] < n < nodoActual.valor[0]):
+                    lista.insertarDespuesDeNodo((n,v),nodoAnterior)
+                    return
+                
+                # Si el elemento esta en la columna de nodo actual, reemplaza el valor.
+                elif (nodoActual.valor[0] == n):
                     nodoActual.valor = (n,v)
                     return
-                nodoAnterior: ListaEnlazada.Nodo = nodoActual
-                nodoActual: ListaEnlazada.Nodo = nodoActual.siguiente
-                while (nodoActual != None):
-                    if(nodoAnterior.valor[0] < n < nodoActual.valor[0]):
-                        lista.insertarDespuesDeNodo((n,v),nodoAnterior)
-                        return
-                    elif (nodoActual.valor[0] == n):
-                        nodoActual.valor = (n,v)
-                        return
-                    else:
-                        nodoAnterior = nodoActual
-                        nodoActual = nodoActual.siguiente
-                lista.push((n,v))
+
+                nodoAnterior = nodoActual
+                nodoActual = nodoActual.siguiente
+
+            # Si la columna del elemento esta no aparecio mientras se recorria la lista
+            # significa que tiene que estar al final. Entonces se la pushea a la lista enlazada.
+            lista.push((n,v))
+
             
-    def __mul__( self, k ):
+    def __mul__( self, k):
         # COMPLETAR:
         # Esta funcion implementa el producto matriz-escalar -> A * k
-        pass
+        nueva_matriz = MatrizRala(self.shape[0],self.shape[1])
+
+        for i in range (len(self.filas)):
+            lista = self.filas[i]
+            nodoActual = lista.raiz
+
+            while not nodoActual == None:
+                columna,valor = nodoActual.valor
+                nueva_matriz[i,columna] = valor*k
+                nodoActual = nodoActual.siguiente
+
+        return nueva_matriz
     
-    #CONSULTAR
     def __rmul__( self, k ):
         # Esta funcion implementa el producto escalar-matriz -> k * A
         return self * k
 
     def __add__( self, other ):
-        # COMPLETAR:
         # Esta funcion implementa la suma de matrices -> A + B
-        pass
-    
+        #Asumimos que las matrcies son del mismo tamaño 
+        if(self.shape == other.shape):
+            c= MatrizRala(self.shape[0],self.shape[1])
+            for i in range(len(other.filas)):
+                fila = other.filas[i]
+                nodoActual = fila.raiz
+                while not (nodoActual == None):
+                    columna,valor = nodoActual.valor
+                    c[i,columna]+=valor
+                    nodoActual = nodoActual.siguiente
+
+            for i in range(len(self.filas)):
+                fila = self.filas[i]
+                nodoActual = fila.raiz
+                while not (nodoActual == None):
+                    columna,valor = nodoActual.valor
+                    c[i,columna]+=valor
+                    nodoActual = nodoActual.siguiente
+            return c
+        
+        else:
+            raise ValueError("Las matrices son de distintos tamaños")
+
     def __sub__( self, other ):
         #Esta funcion implementa la resta de matrices (pueden usar suma y producto) -> A - B
-        #COMPLETAR
-        pass
+        return self + ((-1)*other)
 
     def __matmul__( self, other ):
-        # COMPLETAR:
         # Esta funcion implementa el producto matricial (notado en Python con el operador "@" ) -> A @ B
-        pass  
+        if self.shape[1] != other.shape[0]:
+            raise ValueError("No se pueden multiplicar las matrices")
+        m = MatrizRala(self.shape[0], other.shape[1])
+        for f in range(len(self.filas)):
+            fila=self.filas[f]
+            nodo_actual=fila.raiz
+            while not nodo_actual ==None:
+                col_a,val=nodo_actual.valor
+                for col_b in range(other.shape[1]):
+                    valor_nuevo=val*other[col_a,col_b]
+                    m[f,col_b]+=valor_nuevo
+                nodo_actual=nodo_actual.siguiente
+        return m
 
-    #Consultar la forma de impresion
     def __repr__( self ):
         res = 'MatrizRala([ \n'
         for i in range( self.shape[0] ):
             res += '    [ '
             for j in range( self.shape[1] ):
                 res += str(self[i,j]) + ' '
-            
             res += ']\n'
-
         res += '])'
-
         return res
 
 def GaussJordan( A, b ):
     # Hallar solucion x para el sistema Ax = b
     # Devolver error si el sistema no tiene solucion o tiene infinitas soluciones, con el mensaje apropiado
+    
     pass
 
-A = MatrizRala(4,4)
-A.__setitem__((1,1),100)
-print(A.filas)
-A.__setitem__((1,2),3)
-print(A.filas)
-A.__setitem__((1,0),489765)
-print(A.filas)
-print(A[1,1])
-print(A[1,2])
-print(A[1,0])
+A = MatrizRala(3,2)
+
+A[0,1] = 1
+A[0,0] =  2
+A[1,1] = 1
+A[1,0] =0
+A[2,0] = 3
+A[2,1] = 3
+
+B = MatrizRala(2,3)
+
+B[0,1] = 3
+B[1,0] = 1
+B[0,0] = 1
+B[1,1] = 1
+B[0,2] = 2
+B[1,2] = -1
+
+C = A@B
+print(C)
+
